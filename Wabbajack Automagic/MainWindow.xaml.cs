@@ -25,20 +25,54 @@ namespace Wabbajack_Automagic
 
         private DispatcherTimer magicTimer;
 
-        private Bitmap currentScreen, slowButton;
+        private Bitmap currentScreen;
+        private List<Bitmap> slowButtons = new List<Bitmap>();
         private System.Drawing.Point? currentPoint;
 
         public MainWindow()
         {
             InitializeComponent();
-            textOutput.CaretBrush = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0, 0, 0, 0));
-            slowButton = new Bitmap(".\\img\\slow download.png");
+            textOutput.CaretBrush = new SolidColorBrush(
+                System.Windows.Media.Color.FromArgb(0, 0, 0, 0)
+            );
+            LoadSlowButtons();
             delayInput.Text = "5";
             magicTimer = new System.Windows.Threading.DispatcherTimer();
             magicTimer.Tick += new EventHandler(magicTimer_Tick);
             magicTimer.Interval = new TimeSpan(0, 0, 5);
             statusLabel.Content = "INACTIVE";
             statusLabel.Foreground = System.Windows.Media.Brushes.Red;
+        }
+
+        private void LoadSlowButtons()
+        {
+            slowButtons.Clear();
+            string imgDir = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "img");
+            if (System.IO.Directory.Exists(imgDir))
+            {
+                var pngs = System.IO.Directory.GetFiles(imgDir, "*.png");
+                foreach (var file in pngs)
+                {
+                    try
+                    {
+                        slowButtons.Add(new Bitmap(file));
+                    }
+                    catch { }
+                }
+            }
+            // fallback: if no PNGs found, try to load default
+            if (slowButtons.Count == 0)
+            {
+                string fallback = System.IO.Path.Combine(imgDir, "slow download.png");
+                if (System.IO.File.Exists(fallback))
+                {
+                    try
+                    {
+                        slowButtons.Add(new Bitmap(fallback));
+                    }
+                    catch { }
+                }
+            }
         }
 
         private void ButtonStart_Click(object sender, RoutedEventArgs e)
@@ -71,14 +105,30 @@ namespace Wabbajack_Automagic
             outputToConsole("Checking for button");
             SetCursorPos(0, 0);
             currentScreen = Screenshot();
-            currentPoint = Find(currentScreen, slowButton);
-            if (currentPoint.HasValue)
+            bool found = false;
+            for (int i = 0; i < slowButtons.Count; i++)
             {
-                outputToConsole("Found button at: (" + currentPoint.Value.X + "," + currentPoint.Value.Y + ")");
-                clickMouse(currentPoint.Value.X + (slowButton.Width / 2), currentPoint.Value.Y + (slowButton.Height / 2));
-                wait(5000);
+                var btn = slowButtons[i];
+                currentPoint = Find(currentScreen, btn);
+                if (currentPoint.HasValue)
+                {
+                    outputToConsole(
+                        $"Found button {i + 1} at: ("
+                        + currentPoint.Value.X
+                        + ","
+                        + currentPoint.Value.Y
+                        + ")"
+                    );
+                    clickMouse(
+                        currentPoint.Value.X + (btn.Width / 2),
+                        currentPoint.Value.Y + (btn.Height / 2)
+                    );
+                    SetCursorPos(0, 0);
+                    found = true;
+                    break;
+                }
             }
-            else
+            if (!found)
             {
                 outputToConsole("Couldn't find button");
             }
@@ -103,7 +153,10 @@ namespace Wabbajack_Automagic
         }
         public Bitmap Screenshot()
         {
-            var screenShot = new Bitmap(Screen.PrimaryScreen.Bounds.Width, Screen.PrimaryScreen.Bounds.Height);
+            var screenShot = new Bitmap(
+                Screen.PrimaryScreen.Bounds.Width,
+                Screen.PrimaryScreen.Bounds.Height
+            );
 
             using (var g = Graphics.FromImage(screenShot))
             {
@@ -132,7 +185,10 @@ namespace Wabbajack_Automagic
             var haystackArray = GetPixelArray(haystack);
             var needleArray = GetPixelArray(needle);
 
-            foreach (var firstLineMatchPoint in FindMatch(haystackArray.Take(haystack.Height - needle.Height), needleArray[0]))
+            foreach (var firstLineMatchPoint in FindMatch(
+                haystackArray.Take(haystack.Height - needle.Height),
+                needleArray[0]
+            ))
             {
                 if (IsNeedlePresentAtLocation(haystackArray, needleArray, firstLineMatchPoint, 1))
                 {
@@ -146,13 +202,21 @@ namespace Wabbajack_Automagic
         private int[][] GetPixelArray(Bitmap bitmap)
         {
             var result = new int[bitmap.Height][];
-            var bitmapData = bitmap.LockBits(new System.Drawing.Rectangle(0, 0, bitmap.Width, bitmap.Height), ImageLockMode.ReadOnly,
-                System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+            var bitmapData = bitmap.LockBits(
+                new System.Drawing.Rectangle(0, 0, bitmap.Width, bitmap.Height),
+                ImageLockMode.ReadOnly,
+                System.Drawing.Imaging.PixelFormat.Format32bppArgb
+            );
 
             for (int y = 0; y < bitmap.Height; ++y)
             {
                 result[y] = new int[bitmap.Width];
-                Marshal.Copy(bitmapData.Scan0 + y * bitmapData.Stride, result[y], 0, result[y].Length);
+                Marshal.Copy(
+                    bitmapData.Scan0 + y * bitmapData.Stride,
+                    result[y],
+                    0,
+                    result[y].Length
+                );
             }
 
             bitmap.UnlockBits(bitmapData);
@@ -160,7 +224,10 @@ namespace Wabbajack_Automagic
             return result;
         }
 
-        private IEnumerable<System.Drawing.Point> FindMatch(IEnumerable<int[]> haystackLines, int[] needleLine)
+        private IEnumerable<System.Drawing.Point> FindMatch(
+            IEnumerable<int[]> haystackLines,
+            int[] needleLine
+        )
         {
             var y = 0;
             foreach (var haystackLine in haystackLines)
@@ -176,7 +243,13 @@ namespace Wabbajack_Automagic
             }
         }
 
-        private bool ContainSameElements(int[] first, int firstStart, int[] second, int secondStart, int length)
+        private bool ContainSameElements(
+            int[] first,
+            int firstStart,
+            int[] second,
+            int secondStart,
+            int length
+        )
         {
             for (int i = 0; i < length; ++i)
             {
@@ -188,12 +261,23 @@ namespace Wabbajack_Automagic
             return true;
         }
 
-        private bool IsNeedlePresentAtLocation(int[][] haystack, int[][] needle, System.Drawing.Point point, int alreadyVerified)
+        private bool IsNeedlePresentAtLocation(
+            int[][] haystack,
+            int[][] needle,
+            System.Drawing.Point point,
+            int alreadyVerified
+        )
         {
             //we already know that "alreadyVerified" lines already match, so skip them
             for (int y = alreadyVerified; y < needle.Length; ++y)
             {
-                if (!ContainSameElements(haystack[y + point.Y], point.X, needle[y], 0, needle.Length))
+                if (!ContainSameElements(
+                    haystack[y + point.Y],
+                    point.X,
+                    needle[y],
+                    0,
+                    needle.Length
+                ))
                 {
                     return false;
                 }
