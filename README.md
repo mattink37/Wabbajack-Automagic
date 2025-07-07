@@ -1,5 +1,9 @@
+
 # Wabbajack-Automagic
 An autoclicker for Wabbajack modlist installer.  
+All credit goes to https://github.com/ge1c4t for the original.
+
+This version allows for multiple images in /img/. It'll check each until it finds a match.
 
 ## NOTE: This program is against NexusMod's TOS. Use with caution.
 
